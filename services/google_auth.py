@@ -6,6 +6,11 @@ from google.auth.transport.requests import Request
 import config
 
 
+def get_redirect_uri():
+    base_url = os.getenv("BASE_URL", "http://localhost:5001")
+    return f"{base_url}/oauth/google/callback"
+
+
 def get_flow():
     return Flow.from_client_config(
         {
@@ -17,7 +22,7 @@ def get_flow():
             }
         },
         scopes=config.GOOGLE_SCOPES,
-        redirect_uri="http://localhost:5001/oauth/google/callback",
+        redirect_uri=get_redirect_uri(),
     )
 
 
