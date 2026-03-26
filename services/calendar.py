@@ -1,6 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 from services.google_auth import get_credentials
+
+KST = timezone(timedelta(hours=9))
 
 
 def fetch_today_events():
@@ -10,9 +12,9 @@ def fetch_today_events():
 
     service = build("calendar", "v3", credentials=creds)
 
-    now = datetime.now()
-    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + "Z"
-    end_of_day = (now.replace(hour=23, minute=59, second=59, microsecond=0)).isoformat() + "Z"
+    now = datetime.now(KST)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
 
     results = service.events().list(
         calendarId="primary",

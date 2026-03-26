@@ -98,6 +98,48 @@ def oauth_google_callback():
     return redirect("/")
 
 
+@app.route("/api/debug")
+def api_debug():
+    try:
+        creds = get_credentials()
+        google_ok = creds is not None
+        slack_ok = bool(config.SLACK_USER_TOKEN)
+        claude_ok = bool(config.ANTHROPIC_API_KEY)
+
+        debug = {
+            "google_ok": google_ok,
+            "slack_ok": slack_ok,
+            "claude_ok": claude_ok,
+            "errors": [],
+        }
+
+        if google_ok:
+            try:
+                emails = fetch_unread_emails()
+                debug["emails_count"] = len(emails) if emails else 0
+            except Exception as e:
+                debug["errors"].append(f"gmail: {str(e)}")
+
+            try:
+                events = fetch_today_events()
+                debug["events_count"] = len(events) if events else 0
+            except Exception as e:
+                debug["errors"].append(f"calendar: {str(e)}")
+
+        if slack_ok:
+            try:
+                slack = fetch_unread_slack()
+                debug["slack_mentions"] = len(slack["mentions"]) if slack else 0
+                debug["slack_dms"] = len(slack["dms"]) if slack else 0
+                debug["slack_channels"] = len(slack["channels"]) if slack else 0
+            except Exception as e:
+                debug["errors"].append(f"slack: {str(e)}")
+
+        return jsonify(debug)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 def open_browser():
     webbrowser.open("http://localhost:5001")
 
