@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Brief</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #222;
+        }
+        h1 { font-size: 1.5rem; font-weight: 600; color: #fff; }
+        .date { color: #666; font-size: 0.9rem; }
+        .refresh-btn {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #999;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover { border-color: #555; color: #fff; }
+        .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .section {
+            background: #111;
+            border: 1px solid #1a1a1a;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .section h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #666;
+            font-weight: 500;
+        }
+        .badge {
+            background: #1a1a2e;
+            color: #4a9eff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge.urgent {
+            background: #2e1a1a;
+            color: #ff4a4a;
+        }
+
+        /* AI Briefing */
+        .briefing-content {
+            line-height: 1.8;
+            font-size: 0.95rem;
+            color: #ccc;
+            white-space: pre-wrap;
+        }
+        .briefing-content strong { color: #fff; }
+
+        /* Events */
+        .event-item {
+            display: flex;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .event-item:last-child { border-bottom: none; }
+        .event-time {
+            color: #4a9eff;
+            font-size: 0.85rem;
+            font-weight: 500;
+            min-width: 50px;
+            flex-shrink: 0;
+        }
+        .event-title { font-size: 0.9rem; }
+        .event-attendees { color: #555; font-size: 0.8rem; margin-top: 0.25rem; }
+        .event-past { opacity: 0.4; }
+
+        /* Emails */
+        .email-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .email-item:last-child { border-bottom: none; }
+        .email-from { color: #4a9eff; font-size: 0.85rem; font-weight: 500; }
+        .email-subject { font-size: 0.9rem; margin-top: 0.2rem; }
+        .email-snippet { color: #555; font-size: 0.8rem; margin-top: 0.2rem; }
+
+        /* Slack */
+        .slack-group { margin-bottom: 1rem; }
+        .slack-group:last-child { margin-bottom: 0; }
+        .slack-group-header {
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .slack-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .slack-item:last-child { border-bottom: none; }
+        .slack-channel { color: #4a9eff; font-size: 0.85rem; }
+        .slack-message {
+            color: #888;
+            font-size: 0.85rem;
+            margin-top: 0.2rem;
+        }
+        .slack-mention { background: #2e1a1a; color: #ff4a4a; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 4rem 0;
+            color: #555;
+        }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 2px solid #333;
+            border-top-color: #4a9eff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Setup */
+        .setup-card {
+            text-align: center;
+            padding: 3rem;
+        }
+        .setup-card a {
+            display: inline-block;
+            background: #4a9eff;
+            color: #fff;
+            text-decoration: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+        .setup-status { margin-top: 1.5rem; text-align: left; }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        .status-ok { color: #4ade80; }
+        .status-fail { color: #ff4a4a; }
+
+        .error-msg {
+            background: #1a1111;
+            border: 1px solid #331a1a;
+            color: #ff6b6b;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Daily Brief</h1>
+                <div class="date" id="current-date"></div>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <span id="cache-badge" style="display:none;color:#666;font-size:0.75rem;"></span>
+                <button class="refresh-btn" onclick="refreshBriefing()" id="refresh-btn">새로고침</button>
+            </div>
+        </header>
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>브리핑을 준비하고 있습니다...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('current-date').textContent =
+            new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+        function renderData(data) {
+            const content = document.getElementById('content');
+            const badge = document.getElementById('cache-badge');
+
+            if (data.needs_auth) {
+                content.innerHTML = `
+                    <div class="section setup-card">
+                        <h2>Google 계정 연결이 필요합니다</h2>
+                        <a href="/oauth/google">Google 계정 연결</a>
+                        <div class="setup-status">
+                            <div class="status-item">
+                                <span class="${data.status.google ? 'status-ok' : 'status-fail'}">${data.status.google ? '✓' : '✗'}</span>
+                                Google (Gmail + Calendar)
+                            </div>
+                            <div class="status-item">
+                                <span class="${data.status.slack ? 'status-ok' : 'status-fail'}">${data.status.slack ? '✓' : '✗'}</span>
+                                Slack
+                            </div>
+                            <div class="status-item">
+                                <span class="${data.status.claude ? 'status-ok' : 'status-fail'}">${data.status.claude ? '✓' : '✗'}</span>
+                                Claude API
+                            </div>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            if (data.from_cache && data._cached_at) {
+                const ago = Math.round((Date.now()/1000 - data._cached_at) / 60);
+                badge.textContent = `${ago}분 전 캐시`;
+                badge.style.display = 'inline';
+            } else {
+                badge.textContent = '최신';
+                badge.style.display = 'inline';
+                setTimeout(() => { badge.style.display = 'none'; }, 3000);
+            }
+
+            let html = '';
+
+            if (data.briefing) {
+                html += `
+                    <div class="section">
+                        <div class="section-header">
+                            <h2>AI 브리핑</h2>
+                        </div>
+                        <div class="briefing-content">${formatBriefing(data.briefing)}</div>
+                    </div>`;
+            }
+
+            if (data.events && data.events.length > 0) {
+                html += `
+                    <div class="section">
+                        <div class="section-header">
+                            <h2>오늘 일정</h2>
+                            <span class="badge">${data.events.length}건</span>
+                        </div>
+                        ${data.events.map(e => {
+                            const time = e.start.includes('T') ? e.start.substring(11, 16) : '종일';
+                            const isPast = e.start.includes('T') && new Date(e.start) < new Date();
+                            const attendees = e.attendees.length > 0 ? e.attendees.slice(0, 4).join(', ') : '';
+                            return `<div class="event-item ${isPast ? 'event-past' : ''}">
+                                <div class="event-time">${time}</div>
+                                <div>
+                                    <div class="event-title">${e.summary}</div>
+                                    ${attendees ? `<div class="event-attendees">${attendees}</div>` : ''}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+            }
+
+            if (data.emails && data.emails.length > 0) {
+                html += `
+                    <div class="section">
+                        <div class="section-header">
+                            <h2>읽지 않은 메일</h2>
+                            <span class="badge">${data.emails.length}건</span>
+                        </div>
+                        ${data.emails.map(e => `
+                            <div class="email-item">
+                                <div class="email-from">${escapeHtml(e.from)}</div>
+                                <div class="email-subject">${escapeHtml(e.subject)}</div>
+                                <div class="email-snippet">${escapeHtml(e.snippet)}</div>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            }
+
+            if (data.slack && (data.slack.mentions.length > 0 || data.slack.dms.length > 0 || data.slack.channels.length > 0)) {
+                const totalUnread = data.slack.dms.reduce((s, d) => s + d.unread_count, 0)
+                    + data.slack.channels.reduce((s, c) => s + c.unread_count, 0);
+                html += `
+                    <div class="section">
+                        <div class="section-header">
+                            <h2>Slack</h2>
+                            <span class="badge ${data.slack.mentions.length > 0 ? 'urgent' : ''}">${totalUnread}건 미읽</span>
+                        </div>`;
+
+                if (data.slack.mentions.length > 0) {
+                    html += `<div class="slack-group">
+                        <div class="slack-group-header">멘션 <span class="slack-mention">${data.slack.mentions.length}</span></div>
+                        ${data.slack.mentions.map(m => `
+                            <div class="slack-item">
+                                <div><span class="slack-channel">#${escapeHtml(m.channel)}</span> ${escapeHtml(m.user)}</div>
+                                <div class="slack-message">${escapeHtml(m.text)}</div>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                if (data.slack.dms.length > 0) {
+                    html += `<div class="slack-group">
+                        <div class="slack-group-header">DM</div>
+                        ${data.slack.dms.map(d => `
+                            <div class="slack-item">
+                                <div class="slack-channel">${escapeHtml(d.user)} (${d.unread_count}건)</div>
+                                ${d.recent_messages.slice(0, 2).map(m => `
+                                    <div class="slack-message">${escapeHtml(m.user)}: ${escapeHtml(m.text)}</div>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                if (data.slack.channels.length > 0) {
+                    html += `<div class="slack-group">
+                        <div class="slack-group-header">채널</div>
+                        ${data.slack.channels.map(c => `
+                            <div class="slack-item">
+                                <div><span class="slack-channel">#${escapeHtml(c.name)}</span> (${c.unread_count}건)${c.has_mention ? ' <span class="slack-mention">멘션</span>' : ''}</div>
+                                ${c.recent_messages.slice(0, 2).map(m => `
+                                    <div class="slack-message">${escapeHtml(m.user)}: ${escapeHtml(m.text)}</div>
+                                `).join('')}
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                html += `</div>`;
+            }
+
+            if (!html) {
+                html = '<div class="section" style="text-align:center;padding:3rem;color:#666;">새로운 메일, 일정, 슬랙 메시지가 없습니다.</div>';
+            }
+
+            content.innerHTML = html;
+        }
+
+        async function loadBriefing() {
+            const content = document.getElementById('content');
+            const btn = document.getElementById('refresh-btn');
+
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>브리핑을 준비하고 있습니다...</p></div>';
+
+            try {
+                const cacheRes = await fetch('/api/briefing');
+                const cacheData = await cacheRes.json();
+                renderData(cacheData);
+            } catch (err) {
+                content.innerHTML = `<div class="section"><div class="error-msg">브리핑 로드 실패: ${err.message}</div></div>`;
+            }
+        }
+
+        async function refreshBriefing() {
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+            btn.textContent = '업데이트 중...';
+
+            try {
+                const res = await fetch('/api/briefing?fresh=1');
+                const data = await res.json();
+                renderData(data);
+            } catch (err) {
+                document.getElementById('content').innerHTML = `<div class="section"><div class="error-msg">브리핑 로드 실패: ${err.message}</div></div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '새로고침';
+            }
+        }
+
+        function formatBriefing(text) {
+            return escapeHtml(text)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        loadBriefing();
+    </script>
+</body>
+</html>
