@@ -27,52 +27,55 @@ def index():
 
 @app.route("/api/briefing")
 def api_briefing():
-    google_ok = get_credentials() is not None
-    slack_ok = bool(config.SLACK_USER_TOKEN)
-    claude_ok = bool(config.ANTHROPIC_API_KEY)
+    try:
+        google_ok = get_credentials() is not None
+        slack_ok = bool(config.SLACK_USER_TOKEN)
+        claude_ok = bool(config.ANTHROPIC_API_KEY)
 
-    if not google_ok:
-        return jsonify({
-            "needs_auth": True,
-            "status": {"google": google_ok, "slack": slack_ok, "claude": claude_ok},
-        })
+        if not google_ok:
+            return jsonify({
+                "needs_auth": True,
+                "status": {"google": google_ok, "slack": slack_ok, "claude": claude_ok},
+            })
 
-    # 캐시가 있으면 즉시 반환 (fresh=1이 아닌 한)
-    force_fresh = request.args.get("fresh", "0") == "1"
-    cached = load_cache()
+        # 캐시가 있으면 즉시 반환 (fresh=1이 아닌 한)
+        force_fresh = request.args.get("fresh", "0") == "1"
+        cached = load_cache()
 
-    if cached and not force_fresh:
-        cached["from_cache"] = True
-        return jsonify(cached)
+        if cached and not force_fresh:
+            cached["from_cache"] = True
+            return jsonify(cached)
 
-    # 전체 로드 — Gmail, Calendar, Slack 병렬 실행
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        email_future = pool.submit(fetch_unread_emails) if google_ok else None
-        event_future = pool.submit(fetch_today_events) if google_ok else None
-        slack_future = pool.submit(fetch_unread_slack) if slack_ok else None
+        # 전체 로드 — Gmail, Calendar, Slack 병렬 실행
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            email_future = pool.submit(fetch_unread_emails) if google_ok else None
+            event_future = pool.submit(fetch_today_events) if google_ok else None
+            slack_future = pool.submit(fetch_unread_slack) if slack_ok else None
 
-    emails = email_future.result() if email_future else []
-    events = event_future.result() if event_future else []
-    slack = slack_future.result() if slack_future else {"mentions": [], "dms": [], "channels": []}
+        emails = email_future.result() if email_future else []
+        events = event_future.result() if event_future else []
+        slack = slack_future.result() if slack_future else {"mentions": [], "dms": [], "channels": []}
 
-    briefing = None
-    if claude_ok and (emails or events or slack):
-        try:
-            briefing = generate_briefing(emails or [], events or [], slack)
-        except Exception as e:
-            briefing = f"AI 브리핑 생성 실패: {str(e)}"
+        briefing = None
+        if claude_ok and (emails or events or slack):
+            try:
+                briefing = generate_briefing(emails or [], events or [], slack)
+            except Exception as e:
+                briefing = f"AI 브리핑 생성 실패: {str(e)}"
 
-    result = {
-        "needs_auth": False,
-        "briefing": briefing,
-        "events": events or [],
-        "emails": emails or [],
-        "slack": slack or {"mentions": [], "dms": [], "channels": []},
-        "from_cache": False,
-    }
-    save_cache(result)
+        result = {
+            "needs_auth": False,
+            "briefing": briefing,
+            "events": events or [],
+            "emails": emails or [],
+            "slack": slack or {"mentions": [], "dms": [], "channels": []},
+            "from_cache": False,
+        }
+        save_cache(result)
 
-    return jsonify(result)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "needs_auth": False}), 500
 
 
 @app.route("/oauth/google")
