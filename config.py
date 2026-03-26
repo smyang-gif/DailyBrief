@@ -13,4 +13,5 @@ GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
 ]
 
-TOKEN_PATH = os.path.join(os.path.dirname(__file__), "token.json")
+IS_VERCEL = os.getenv("VERCEL", False)
+TOKEN_PATH = "/tmp/token.json" if IS_VERCEL else os.path.join(os.path.dirname(__file__), "token.json")

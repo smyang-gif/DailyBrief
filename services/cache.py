@@ -2,7 +2,8 @@ import json
 import os
 import time
 
-CACHE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".cache.json")
+IS_VERCEL = os.getenv("VERCEL", False)
+CACHE_PATH = "/tmp/.cache.json" if IS_VERCEL else os.path.join(os.path.dirname(os.path.dirname(__file__)), ".cache.json")
 
 
 def load_cache():

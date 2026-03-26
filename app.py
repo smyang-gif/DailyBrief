@@ -89,7 +89,8 @@ def oauth_google():
 @app.route("/oauth/google/callback")
 def oauth_google_callback():
     flow = get_flow()
-    flow.fetch_token(authorization_response=request.url)
+    auth_response = request.url.replace("http://", "https://")
+    flow.fetch_token(authorization_response=auth_response)
     save_credentials(flow.credentials)
     return redirect("/")
 
