@@ -30,12 +30,22 @@ def get_credentials():
     if not os.path.exists(config.TOKEN_PATH):
         return None
 
-    creds = Credentials.from_authorized_user_file(config.TOKEN_PATH, config.GOOGLE_SCOPES)
+    try:
+        creds = Credentials.from_authorized_user_file(config.TOKEN_PATH, config.GOOGLE_SCOPES)
+    except Exception:
+        return None
 
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        with open(config.TOKEN_PATH, "w") as f:
-            f.write(creds.to_json())
+        try:
+            saved_refresh_token = creds.refresh_token
+            creds.refresh(Request())
+            # google-auth 일부 버전에서 refresh 후 refresh_token이 사라지는 버그 대응
+            if not creds.refresh_token:
+                creds.refresh_token = saved_refresh_token
+            with open(config.TOKEN_PATH, "w") as f:
+                f.write(creds.to_json())
+        except Exception:
+            return None
 
     return creds if creds and creds.valid else None
 
