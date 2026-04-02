@@ -2,6 +2,7 @@ import anthropic
 import json
 from datetime import datetime
 import config
+from services.token_usage import record_usage
 
 
 def generate_briefing(emails, events, slack):
@@ -69,6 +70,12 @@ def generate_briefing(emails, events, slack):
 간결하고 실용적으로. 불필요한 인사말이나 장식 없이 바로 핵심만.""",
             }
         ],
+    )
+
+    record_usage(
+        model="claude-sonnet-4-20250514",
+        input_tokens=message.usage.input_tokens,
+        output_tokens=message.usage.output_tokens,
     )
 
     return message.content[0].text

@@ -181,6 +181,37 @@
             border-radius: 8px;
             font-size: 0.85rem;
         }
+
+        /* Token Usage Monitor */
+        .token-monitor {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .token-stat {
+            background: #0d0d0d;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+        .token-stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #555;
+            margin-bottom: 0.25rem;
+        }
+        .token-stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .token-stat-value.cost { color: #4ade80; }
+        .token-stat-sub {
+            font-size: 0.7rem;
+            color: #444;
+            margin-top: 0.15rem;
+        }
     </style>
 </head>
 <body>
@@ -201,6 +232,7 @@
                 <p>브리핑을 준비하고 있습니다...</p>
             </div>
         </div>
+        <div id="token-usage"></div>
     </div>
 
     <script>
@@ -398,7 +430,58 @@
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        async function loadTokenUsage() {
+            try {
+                const res = await fetch('/api/token-usage');
+                const data = await res.json();
+                renderTokenUsage(data);
+            } catch (e) { /* silent */ }
+        }
+
+        function renderTokenUsage(data) {
+            const container = document.getElementById('token-usage');
+            const t = data.today;
+            const a = data.all_time;
+
+            container.innerHTML = `
+                <div class="section">
+                    <div class="section-header">
+                        <h2>API 사용량</h2>
+                        <span class="badge">오늘 ${t.calls}회 호출</span>
+                    </div>
+                    <div class="token-monitor">
+                        <div class="token-stat">
+                            <div class="token-stat-label">오늘 비용</div>
+                            <div class="token-stat-value cost">$${t.cost_usd.toFixed(4)}</div>
+                            <div class="token-stat-sub">${formatTokens(t.input_tokens + t.output_tokens)} tokens</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">누적 비용</div>
+                            <div class="token-stat-value cost">$${a.cost_usd.toFixed(4)}</div>
+                            <div class="token-stat-sub">${a.calls}회 · ${formatTokens(a.input_tokens + a.output_tokens)} tokens</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">오늘 입력</div>
+                            <div class="token-stat-value">${formatTokens(t.input_tokens)}</div>
+                            <div class="token-stat-sub">$${(t.input_tokens / 1000000 * 3).toFixed(4)}</div>
+                        </div>
+                        <div class="token-stat">
+                            <div class="token-stat-label">오늘 출력</div>
+                            <div class="token-stat-value">${formatTokens(t.output_tokens)}</div>
+                            <div class="token-stat-sub">$${(t.output_tokens / 1000000 * 15).toFixed(4)}</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function formatTokens(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toString();
+        }
+
         loadBriefing();
+        loadTokenUsage();
     </script>
 </body>
 </html>

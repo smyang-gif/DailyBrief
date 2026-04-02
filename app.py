@@ -14,6 +14,7 @@ from services.calendar import fetch_today_events
 from services.slack import fetch_unread_slack
 from services.briefing import generate_briefing
 from services.cache import load_cache, save_cache, get_last_fetch_time
+from services.token_usage import get_usage_summary
 import config
 
 app = Flask(__name__)
@@ -96,6 +97,14 @@ def oauth_google_callback():
     flow.fetch_token(authorization_response=auth_response)
     save_credentials(flow.credentials)
     return redirect("/")
+
+
+@app.route("/api/token-usage")
+def api_token_usage():
+    try:
+        return jsonify(get_usage_summary())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/debug")
