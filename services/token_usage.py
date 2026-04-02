@@ -1,11 +1,10 @@
 import json
 import os
 import time
+from services import redis_store
 
-IS_VERCEL = os.getenv("VERCEL", False)
-USAGE_PATH = "/tmp/.token_usage.json" if IS_VERCEL else os.path.join(
-    os.path.dirname(os.path.dirname(__file__)), ".token_usage.json"
-)
+USAGE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".token_usage.json")
+REDIS_KEY = "token_usage"
 
 # Claude Sonnet 4 pricing (per 1M tokens)
 PRICING = {
@@ -13,20 +12,31 @@ PRICING = {
 }
 DEFAULT_PRICING = {"input": 3.0, "output": 15.0}
 
+_EMPTY = {"records": [], "totals": {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}}
+
 
 def _load_usage():
-    if not os.path.exists(USAGE_PATH):
-        return {"records": [], "totals": {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}}
-    try:
-        with open(USAGE_PATH, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return {"records": [], "totals": {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}}
+    if redis_store.is_available():
+        data = redis_store.get(REDIS_KEY)
+        if data:
+            return data
+    if os.path.exists(USAGE_PATH):
+        try:
+            with open(USAGE_PATH, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {**_EMPTY, "records": [], "totals": {**_EMPTY["totals"]}}
 
 
 def _save_usage(data):
-    with open(USAGE_PATH, "w") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    if redis_store.is_available():
+        redis_store.set(REDIS_KEY, data)
+    try:
+        with open(USAGE_PATH, "w") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except IOError:
+        pass
 
 
 def record_usage(model, input_tokens, output_tokens):

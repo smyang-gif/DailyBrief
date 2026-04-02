@@ -4,6 +4,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 import config
+from services import redis_store
 
 
 def get_redirect_uri():
@@ -26,12 +27,38 @@ def get_flow():
     )
 
 
+def _load_token_data():
+    """Redis 우선, 파일 폴백으로 토큰 데이터 로드"""
+    if redis_store.is_available():
+        data = redis_store.get("google_token")
+        if data:
+            return data
+    if os.path.exists(config.TOKEN_PATH):
+        try:
+            with open(config.TOKEN_PATH, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return None
+
+
+def _save_token_data(creds):
+    """Redis + 파일 양쪽에 토큰 저장"""
+    token_json = creds.to_json()
+    token_data = json.loads(token_json)
+    if redis_store.is_available():
+        redis_store.set("google_token", token_data)
+    with open(config.TOKEN_PATH, "w") as f:
+        f.write(token_json)
+
+
 def get_credentials():
-    if not os.path.exists(config.TOKEN_PATH):
+    token_data = _load_token_data()
+    if not token_data:
         return None
 
     try:
-        creds = Credentials.from_authorized_user_file(config.TOKEN_PATH, config.GOOGLE_SCOPES)
+        creds = Credentials.from_authorized_user_info(token_data, config.GOOGLE_SCOPES)
     except Exception:
         return None
 
@@ -39,11 +66,9 @@ def get_credentials():
         try:
             saved_refresh_token = creds.refresh_token
             creds.refresh(Request())
-            # google-auth 일부 버전에서 refresh 후 refresh_token이 사라지는 버그 대응
             if not creds.refresh_token:
                 creds.refresh_token = saved_refresh_token
-            with open(config.TOKEN_PATH, "w") as f:
-                f.write(creds.to_json())
+            _save_token_data(creds)
         except Exception:
             return None
 
@@ -51,5 +76,4 @@ def get_credentials():
 
 
 def save_credentials(creds):
-    with open(config.TOKEN_PATH, "w") as f:
-        f.write(creds.to_json())
+    _save_token_data(creds)
